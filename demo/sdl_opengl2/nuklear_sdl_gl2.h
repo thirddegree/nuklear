@@ -1,7 +1,7 @@
 /*
  * Nuklear - 1.32.0 - public domain
  * no warrenty implied; use at your own risk.
- * authored from 2015-2016 by Micha Mettke
+ * authored from 2015-2017 by Micha Mettke
  */
 /*
  * ==============================================================
@@ -18,7 +18,7 @@ NK_API struct nk_context*   nk_sdl_init(SDL_Window *win);
 NK_API void                 nk_sdl_font_stash_begin(struct nk_font_atlas **atlas);
 NK_API void                 nk_sdl_font_stash_end(void);
 NK_API int                  nk_sdl_handle_event(SDL_Event *evt);
-NK_API void                 nk_sdl_render(enum nk_anti_aliasing , int max_vertex_buffer, int max_element_buffer);
+NK_API void                 nk_sdl_render(enum nk_anti_aliasing);
 NK_API void                 nk_sdl_shutdown(void);
 
 #endif
@@ -63,7 +63,7 @@ nk_sdl_device_upload_atlas(const void *image, int width, int height)
 }
 
 NK_API void
-nk_sdl_render(enum nk_anti_aliasing AA, int max_vertex_buffer, int max_element_buffer)
+nk_sdl_render(enum nk_anti_aliasing AA)
 {
     /* setup global state */
     struct nk_sdl_device *dev = &sdl.ogl;
@@ -178,7 +178,7 @@ nk_sdl_render(enum nk_anti_aliasing AA, int max_vertex_buffer, int max_element_b
 }
 
 static void
-nk_sdl_clipbard_paste(nk_handle usr, struct nk_text_edit *edit)
+nk_sdl_clipboard_paste(nk_handle usr, struct nk_text_edit *edit)
 {
     const char *text = SDL_GetClipboardText();
     if (text) nk_textedit_paste(edit, text, nk_strlen(text));
@@ -186,7 +186,7 @@ nk_sdl_clipbard_paste(nk_handle usr, struct nk_text_edit *edit)
 }
 
 static void
-nk_sdl_clipbard_copy(nk_handle usr, const char *text, int len)
+nk_sdl_clipboard_copy(nk_handle usr, const char *text, int len)
 {
     char *str = 0;
     (void)usr;
@@ -204,8 +204,8 @@ nk_sdl_init(SDL_Window *win)
 {
     sdl.win = win;
     nk_init_default(&sdl.ctx, 0);
-    sdl.ctx.clip.copy = nk_sdl_clipbard_copy;
-    sdl.ctx.clip.paste = nk_sdl_clipbard_paste;
+    sdl.ctx.clip.copy = nk_sdl_clipboard_copy;
+    sdl.ctx.clip.paste = nk_sdl_clipboard_paste;
     sdl.ctx.clip.userdata = nk_handle_ptr(0);
     nk_buffer_init_default(&sdl.ogl.cmds);
     return &sdl.ctx;
@@ -302,27 +302,31 @@ nk_sdl_handle_event(SDL_Event *evt)
         /* mouse button */
         int down = evt->type == SDL_MOUSEBUTTONDOWN;
         const int x = evt->button.x, y = evt->button.y;
-        if (evt->button.button == SDL_BUTTON_LEFT)
+        if (evt->button.button == SDL_BUTTON_LEFT) {
+            if (evt->button.clicks > 1)
+                nk_input_button(ctx, NK_BUTTON_DOUBLE, x, y, down);
             nk_input_button(ctx, NK_BUTTON_LEFT, x, y, down);
-        if (evt->button.button == SDL_BUTTON_MIDDLE)
+        } else if (evt->button.button == SDL_BUTTON_MIDDLE)
             nk_input_button(ctx, NK_BUTTON_MIDDLE, x, y, down);
-        if (evt->button.button == SDL_BUTTON_RIGHT)
+        else if (evt->button.button == SDL_BUTTON_RIGHT)
             nk_input_button(ctx, NK_BUTTON_RIGHT, x, y, down);
-        else return 0;
         return 1;
     } else if (evt->type == SDL_MOUSEMOTION) {
+        /* mouse motion */
         if (ctx->input.mouse.grabbed) {
             int x = (int)ctx->input.mouse.prev.x, y = (int)ctx->input.mouse.prev.y;
             nk_input_motion(ctx, x + evt->motion.xrel, y + evt->motion.yrel);
         } else nk_input_motion(ctx, evt->motion.x, evt->motion.y);
         return 1;
     } else if (evt->type == SDL_TEXTINPUT) {
+        /* text input */
         nk_glyph glyph;
         memcpy(glyph, evt->text.text, NK_UTF_SIZE);
         nk_input_glyph(ctx, glyph);
         return 1;
     } else if (evt->type == SDL_MOUSEWHEEL) {
-        nk_input_scroll(ctx,(float)evt->wheel.y);
+        /* mouse wheel */
+        nk_input_scroll(ctx,nk_vec2((float)evt->wheel.x,(float)evt->wheel.y));
         return 1;
     }
     return 0;

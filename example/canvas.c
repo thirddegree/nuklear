@@ -307,7 +307,7 @@ static void error_callback(int e, const char *d){printf("Error %d: %s\n", e, d);
 static void text_input(GLFWwindow *win, unsigned int codepoint)
 {nk_input_unicode((struct nk_context*)glfwGetWindowUserPointer(win), codepoint);}
 static void scroll_input(GLFWwindow *win, double _, double yoff)
-{UNUSED(_);nk_input_scroll((struct nk_context*)glfwGetWindowUserPointer(win), (float)yoff);}
+{UNUSED(_);nk_input_scroll((struct nk_context*)glfwGetWindowUserPointer(win), nk_vec2(0, (float)yoff));}
 
 static void
 pump_input(struct nk_context *ctx, GLFWwindow *win)
@@ -370,8 +370,8 @@ canvas_begin(struct nk_context *ctx, struct nk_canvas *canvas, nk_flags flags,
 
     /* create/update window and set position + size */
     flags = flags & ~NK_WINDOW_DYNAMIC;
+    nk_window_set_bounds(ctx, "Window", nk_rect(x, y, width, height));
     nk_begin(ctx, "Window", nk_rect(x, y, width, height), NK_WINDOW_NO_SCROLLBAR|flags);
-    nk_window_set_bounds(ctx, nk_rect(x, y, width, height));
 
     /* allocate the complete window space for drawing */
     {struct nk_rect total_space;
@@ -410,6 +410,7 @@ int main(int argc, char *argv[])
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+    glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
     win = glfwCreateWindow(WINDOW_WIDTH, WINDOW_HEIGHT, "Demo", NULL, NULL);
     glfwMakeContextCurrent(win);
     glfwSetWindowUserPointer(win, &ctx);
